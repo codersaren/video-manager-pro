@@ -20,6 +20,8 @@ function fromRow(row: Record<string, unknown>): Recurso {
   };
 }
 
+function fire(q: PromiseLike<unknown>) { q.then(); }
+
 export function useRecursos() {
   const [recursos, setRecursos] = useState<Recurso[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -41,15 +43,14 @@ export function useRecursos() {
         .order('created_at', { ascending: true });
 
       if (!error && data && data.length === 0) {
-        // Migrar desde localStorage si hay datos
         try {
           const raw = localStorage.getItem(KEY);
           if (raw) {
             const local: Recurso[] = JSON.parse(raw);
             if (local.length > 0) {
-              await supabase.from('recursos').insert(local.map(r => ({ ...r })));
+              const { error: insertError } = await supabase.from('recursos').insert(local.map(r => ({ ...r })));
+              if (!insertError) localStorage.removeItem(KEY);
               setRecursos(local);
-              localStorage.removeItem(KEY);
               setLoaded(true);
               return;
             }
@@ -65,31 +66,23 @@ export function useRecursos() {
   }, []);
 
   useEffect(() => {
-    if (loaded && !supabaseReady) {
-      localStorage.setItem(KEY, JSON.stringify(recursos));
-    }
+    if (loaded && !supabaseReady) localStorage.setItem(KEY, JSON.stringify(recursos));
   }, [recursos, loaded]);
 
   const agregarRecurso = useCallback((r: Omit<Recurso, 'id'>) => {
     const id = crypto.randomUUID();
     setRecursos(prev => [...prev, { ...r, id }]);
-    if (supabaseReady) {
-      supabase.from('recursos').insert({ id, ...r });
-    }
+    if (supabaseReady) fire(supabase.from('recursos').insert({ id, ...r }));
   }, []);
 
   const editarRecurso = useCallback((id: string, cambios: Partial<Omit<Recurso, 'id'>>) => {
     setRecursos(prev => prev.map(r => r.id === id ? { ...r, ...cambios } : r));
-    if (supabaseReady) {
-      supabase.from('recursos').update(cambios).eq('id', id);
-    }
+    if (supabaseReady) fire(supabase.from('recursos').update(cambios).eq('id', id));
   }, []);
 
   const eliminarRecurso = useCallback((id: string) => {
     setRecursos(prev => prev.filter(r => r.id !== id));
-    if (supabaseReady) {
-      supabase.from('recursos').delete().eq('id', id);
-    }
+    if (supabaseReady) fire(supabase.from('recursos').delete().eq('id', id));
   }, []);
 
   return { recursos, loaded, agregarRecurso, editarRecurso, eliminarRecurso };

@@ -6,8 +6,8 @@ import { supabase } from '@/lib/supabase';
 
 const STORAGE_KEY = 'video-manager-proyectos';
 
-// Supabase solo se usa cuando las credenciales reales están cargadas.
-// Mientras no estén configuradas, la app funciona igual que antes con localStorage.
+// supabase-js v2 queries son LAZY — no hacen HTTP hasta que se llama .then().
+// supabaseReady controla si usar Supabase o localStorage.
 const supabaseReady = !!(
   process.env.NEXT_PUBLIC_SUPABASE_URL?.startsWith('https://') &&
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
@@ -56,13 +56,15 @@ function partialToRow(cambios: Partial<Omit<Proyecto, 'id'>>): Record<string, un
   return row;
 }
 
+// Dispara el request sin bloquear (supabase-js v2 es lazy, .then() fuerza la ejecución)
+function fire(q: PromiseLike<unknown>) { q.then(); }
+
 export function useProjects() {
   const [proyectos, setProyectos] = useState<Proyecto[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (!supabaseReady) {
-      // Supabase no configurado aún → usar localStorage como siempre
       try {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) setProyectos(JSON.parse(stored));
@@ -71,7 +73,6 @@ export function useProjects() {
       return;
     }
 
-    // Supabase configurado → cargar desde DB y migrar localStorage si es necesario
     async function load() {
       const { data, error } = await supabase
         .from('proyectos')
@@ -81,7 +82,6 @@ export function useProjects() {
       if (error) console.error('[useProjects] SELECT error:', error.message);
 
       if ((!error && data && data.length === 0) || error) {
-        // BD vacía o con error: intentar migrar desde localStorage
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
           try {
@@ -115,7 +115,6 @@ export function useProjects() {
     load();
   }, []);
 
-  // Guardar en localStorage cuando Supabase no está configurado (comportamiento original)
   useEffect(() => {
     if (loaded && !supabaseReady) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(proyectos));
@@ -129,7 +128,7 @@ export function useProjects() {
     };
     setProyectos(prev => [...prev, nuevo]);
     if (supabaseReady) {
-      supabase.from('proyectos').insert({ id: nuevo.id, ...toRow(p), sort_order: Date.now() });
+      fire(supabase.from('proyectos').insert({ id: nuevo.id, ...toRow(p), sort_order: Date.now() }));
     }
     return nuevo;
   }, []);
@@ -137,14 +136,14 @@ export function useProjects() {
   const editarProyecto = useCallback((id: string, cambios: Partial<Omit<Proyecto, 'id'>>) => {
     setProyectos(prev => prev.map(p => p.id === id ? { ...p, ...cambios } : p));
     if (supabaseReady) {
-      supabase.from('proyectos').update(partialToRow(cambios)).eq('id', id);
+      fire(supabase.from('proyectos').update(partialToRow(cambios)).eq('id', id));
     }
   }, []);
 
   const eliminarProyecto = useCallback((id: string) => {
     setProyectos(prev => prev.filter(p => p.id !== id));
     if (supabaseReady) {
-      supabase.from('proyectos').delete().eq('id', id);
+      fire(supabase.from('proyectos').delete().eq('id', id));
     }
   }, []);
 
@@ -156,9 +155,9 @@ export function useProjects() {
     }));
     setProyectos(prev => [...prev, ...conIds]);
     if (supabaseReady) {
-      supabase.from('proyectos').insert(
+      fire(supabase.from('proyectos').insert(
         conIds.map((p, i) => ({ id: p.id, ...toRow(p), sort_order: ts + i }))
-      );
+      ));
     }
   }, []);
 
@@ -166,7 +165,7 @@ export function useProjects() {
     const idSet = new Set(ids);
     setProyectos(prev => prev.map(p => idSet.has(p.id) ? { ...p, ...cambios } : p));
     if (supabaseReady) {
-      supabase.from('proyectos').update(partialToRow(cambios)).in('id', ids);
+      fire(supabase.from('proyectos').update(partialToRow(cambios)).in('id', ids));
     }
   }, []);
 
@@ -174,7 +173,7 @@ export function useProjects() {
     const idSet = new Set(ids);
     setProyectos(prev => prev.filter(p => !idSet.has(p.id)));
     if (supabaseReady) {
-      supabase.from('proyectos').delete().in('id', ids);
+      fire(supabase.from('proyectos').delete().in('id', ids));
     }
   }, []);
 
@@ -186,7 +185,7 @@ export function useProjects() {
       const next = arrayMove(prev, oldIndex, newIndex);
       if (supabaseReady) {
         next.forEach((p, i) => {
-          supabase.from('proyectos').update({ sort_order: i }).eq('id', p.id);
+          fire(supabase.from('proyectos').update({ sort_order: i }).eq('id', p.id));
         });
       }
       return next;
