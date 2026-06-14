@@ -36,7 +36,7 @@ export default function Home() {
     proyectos, agregarProyecto, editarProyecto, eliminarProyecto,
     editarProyectosMasa, eliminarProyectosMasa, importarProyectos,
     reordenarProyectos, loaded,
-  } = useProjects();
+  } = useProjects(!authLoading);
 
   const { prefs, updatePref, resetPrefs } = useCardPreferences();
   const { recursos, agregarRecurso, editarRecurso, eliminarRecurso } = useRecursos();

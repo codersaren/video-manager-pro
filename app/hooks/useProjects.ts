@@ -59,7 +59,7 @@ function partialToRow(cambios: Partial<Omit<Proyecto, 'id'>>): Record<string, un
 // Dispara el request sin bloquear (supabase-js v2 es lazy, .then() fuerza la ejecución)
 function fire(q: PromiseLike<unknown>) { q.then(); }
 
-export function useProjects() {
+export function useProjects(ready = true) {
   const [proyectos, setProyectos] = useState<Proyecto[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -72,6 +72,8 @@ export function useProjects() {
       setLoaded(true);
       return;
     }
+
+    if (!ready) return;
 
     async function load() {
       const { data, error } = await supabase
@@ -112,7 +114,7 @@ export function useProjects() {
     }
 
     load();
-  }, []);
+  }, [ready]);
 
   useEffect(() => {
     if (loaded && !supabaseReady) {
