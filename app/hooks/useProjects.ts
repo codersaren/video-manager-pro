@@ -88,9 +88,8 @@ export function useProjects() {
             const local: Proyecto[] = JSON.parse(stored);
             if (local.length > 0) {
               if (!error) {
-                const ts = Date.now();
                 const { error: insertError } = await supabase.from('proyectos').insert(
-                  local.map((p, i) => ({ id: p.id, ...toRow(p), sort_order: ts + i }))
+                  local.map((p, i) => ({ id: p.id, ...toRow(p), sort_order: i }))
                 );
                 if (insertError) {
                   console.error('[useProjects] INSERT error:', insertError.message);
@@ -126,10 +125,12 @@ export function useProjects() {
       ...p,
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     };
-    setProyectos(prev => [...prev, nuevo]);
-    if (supabaseReady) {
-      fire(supabase.from('proyectos').insert({ id: nuevo.id, ...toRow(p), sort_order: Date.now() }));
-    }
+    setProyectos(prev => {
+      if (supabaseReady) {
+        fire(supabase.from('proyectos').insert({ id: nuevo.id, ...toRow(p), sort_order: prev.length }));
+      }
+      return [...prev, nuevo];
+    });
     return nuevo;
   }, []);
 
@@ -153,12 +154,15 @@ export function useProjects() {
       ...p,
       id: `${ts + i}-${Math.random().toString(36).slice(2, 8)}`,
     }));
-    setProyectos(prev => [...prev, ...conIds]);
-    if (supabaseReady) {
-      fire(supabase.from('proyectos').insert(
-        conIds.map((p, i) => ({ id: p.id, ...toRow(p), sort_order: ts + i }))
-      ));
-    }
+    setProyectos(prev => {
+      const base = prev.length;
+      if (supabaseReady) {
+        fire(supabase.from('proyectos').insert(
+          conIds.map((p, i) => ({ id: p.id, ...toRow(p), sort_order: base + i }))
+        ));
+      }
+      return [...prev, ...conIds];
+    });
   }, []);
 
   const editarProyectosMasa = useCallback((ids: string[], cambios: Partial<Omit<Proyecto, 'id'>>) => {
