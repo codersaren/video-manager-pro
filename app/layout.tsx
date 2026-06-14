@@ -10,7 +10,7 @@ const parkinsans = Parkinsans({
 });
 
 export const metadata: Metadata = {
-  title: "Video Manager",
+  title: "Saren Agency",
   description: "Gestión de proyectos de edición de video",
 };
 

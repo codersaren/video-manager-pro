@@ -60,7 +60,7 @@ export function LoginPage() {
             <Film size={14} strokeWidth={1.5} color="#f7f6f3" />
           </div>
           <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-            Video Manager
+            Saren Agency
           </span>
         </div>
 
