@@ -7,6 +7,8 @@ import {
 import { useProjects } from './hooks/useProjects';
 import { useCardPreferences } from './hooks/useCardPreferences';
 import { useRecursos } from './hooks/useRecursos';
+import { useAuth } from './context/AuthContext';
+import { LoginPage } from './components/LoginPage';
 import { Proyecto } from './types';
 import { getWeekStart, getTodayISO, toISODate, addDays } from './utils/dates';
 import { CardPrefsContext } from './context/CardPrefsContext';
@@ -28,6 +30,8 @@ import { ProjectCard } from './components/ProjectCard';
 type Vista = 'dashboard' | 'calendario' | 'tabla' | 'ajustes' | 'recursos' | 'ingresos';
 
 export default function Home() {
+  const { user, role, loading: authLoading } = useAuth();
+
   const {
     proyectos, agregarProyecto, editarProyecto, eliminarProyecto,
     editarProyectosMasa, eliminarProyectosMasa, importarProyectos,
@@ -46,6 +50,7 @@ export default function Home() {
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [filtros, setFiltros]     = useState<Filtros>(FILTROS_EMPTY);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
 
   // ── Selection ────────────────────────────────────────────────────────
   const toggleSelection = useCallback((id: string) => {
@@ -127,15 +132,16 @@ export default function Home() {
     }
   };
 
-  // ── Loading ───────────────────────────────────────────────────────────
-  if (!loaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
-        <div className="w-6 h-6 border-2 rounded-full animate-spin"
-          style={{ borderColor: 'var(--border-strong)', borderTopColor: 'transparent' }} />
-      </div>
-    );
-  }
+  // ── Auth + data guards ───────────────────────────────────────────────
+  const spinner = (
+    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
+      <div className="w-6 h-6 border-2 rounded-full animate-spin"
+        style={{ borderColor: 'var(--border-strong)', borderTopColor: 'transparent' }} />
+    </div>
+  );
+  if (authLoading) return spinner;
+  if (!user) return <LoginPage />;
+  if (!loaded) return spinner;
 
   // ── Calendar content ──────────────────────────────────────────────────
   const calendarContent = (
@@ -210,6 +216,7 @@ export default function Home() {
           setVista={v => { setVista(v); clearSelection(); }}
           onImport={importarProyectos}
           proyectos={proyectos}
+          role={role}
         />
 
         {/* ── Right column: header + main ── */}
@@ -255,7 +262,9 @@ export default function Home() {
               />
 
             ) : vista === 'ingresos' ? (
-              <IngresosView proyectos={proyectos} />
+              role === 'clipper'
+                ? <div className="flex-1 flex items-center justify-center" style={{ color: 'var(--text-muted)', fontSize: 14 }}>Acceso restringido</div>
+                : <IngresosView proyectos={proyectos} />
 
             ) : (
               // ── Calendario — calendar is everything ──

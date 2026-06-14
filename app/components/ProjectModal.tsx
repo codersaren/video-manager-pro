@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Proyecto, EstadoProyecto, ESTADOS, ESTADO_CONFIG } from '../types';
 import { getTodayISO } from '../utils/dates';
+import { useAuth } from '../context/AuthContext';
 
 interface Props {
   fechaInicial?: string;
@@ -39,6 +40,7 @@ const labelStyle: React.CSSProperties = {
 };
 
 export function ProjectModal({ fechaInicial, onClose, onSave }: Props) {
+  const { role } = useAuth();
   const [form, setForm] = useState<Omit<Proyecto, 'id'>>({ ...EMPTY, fechaEntrega: fechaInicial || getTodayISO() });
 
   useEffect(() => {
@@ -89,7 +91,7 @@ export function ProjectModal({ fechaInicial, onClose, onSave }: Props) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className={role !== 'clipper' ? 'grid grid-cols-2 gap-3' : ''}>
             <div>
               <label style={labelStyle}>Cliente</label>
               <input
@@ -99,16 +101,18 @@ export function ProjectModal({ fechaInicial, onClose, onSave }: Props) {
                 onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
               />
             </div>
-            <div>
-              <label style={labelStyle}>Precio (€)</label>
-              <input
-                type="number" min="0" step="0.01"
-                value={form.precio || ''} onChange={e => set('precio', e.target.value)}
-                placeholder="0" style={inputStyle}
-                onFocus={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; }}
-                onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
-              />
-            </div>
+            {role !== 'clipper' && (
+              <div>
+                <label style={labelStyle}>Precio (€)</label>
+                <input
+                  type="number" min="0" step="0.01"
+                  value={form.precio || ''} onChange={e => set('precio', e.target.value)}
+                  placeholder="0" style={inputStyle}
+                  onFocus={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
+                />
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">

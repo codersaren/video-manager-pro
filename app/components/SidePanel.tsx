@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { X, Trash2, ExternalLink } from 'lucide-react';
 import { Proyecto, EstadoProyecto, ESTADOS, ESTADO_CONFIG } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 interface Props {
   proyecto: Proyecto | null;
@@ -43,6 +44,7 @@ const STATUS_BORDER: Record<string, string> = {
 };
 
 export function SidePanel({ proyecto, onClose, onSave, onDelete }: Props) {
+  const { role } = useAuth();
   const [form, setForm] = useState<Omit<Proyecto, 'id'> | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -172,16 +174,18 @@ export function SidePanel({ proyecto, onClose, onSave, onDelete }: Props) {
             </div>
           </div>
 
-          <div>
-            <label style={labelStyle}>Precio (€)</label>
-            <input
-              type="number" min="0" step="0.01"
-              value={form.precio || ''} onChange={e => set('precio', e.target.value)}
-              placeholder="0" style={inputStyle}
-              onFocus={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; }}
-              onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
-            />
-          </div>
+          {role !== 'clipper' && (
+            <div>
+              <label style={labelStyle}>Precio (€)</label>
+              <input
+                type="number" min="0" step="0.01"
+                value={form.precio || ''} onChange={e => set('precio', e.target.value)}
+                placeholder="0" style={inputStyle}
+                onFocus={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; }}
+                onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
+              />
+            </div>
+          )}
 
           <div>
             <label style={labelStyle}>Link del material</label>

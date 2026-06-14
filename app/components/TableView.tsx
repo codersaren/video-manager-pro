@@ -7,6 +7,7 @@ import {
 } from '@dnd-kit/core';
 import { Proyecto, EstadoProyecto } from '../types';
 import { formatDisplayDate } from '../utils/dates';
+import { useAuth } from '../context/AuthContext';
 
 const COLUMNS: { estado: EstadoProyecto; label: string; color: string }[] = [
   { estado: 'pendiente', label: 'Pendiente', color: '#eab308' },
@@ -25,6 +26,7 @@ interface Props {
 
 // ── Shared card visuals ──────────────────────────────────────────────────────
 function CardContent({ proyecto }: { proyecto: Proyecto }) {
+  const { role } = useAuth();
   return (
     <>
       <span style={{
@@ -45,7 +47,7 @@ function CardContent({ proyecto }: { proyecto: Proyecto }) {
           {formatDisplayDate(proyecto.fechaEntrega)}
         </span>
       </div>
-      {proyecto.precio > 0 && (
+      {role !== 'clipper' && proyecto.precio > 0 && (
         <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
           {proyecto.precio.toLocaleString('es-ES')}€
         </span>
@@ -118,6 +120,7 @@ function DroppableColumn({
 
 // ── Main board ───────────────────────────────────────────────────────────────
 export function TableView({ proyectos, onEdit, onStatusChange }: Props) {
+  const { role } = useAuth();
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const dragJustEnded = useRef(false);
 
@@ -194,7 +197,7 @@ export function TableView({ proyectos, onEdit, onStatusChange }: Props) {
               </div>
 
               {/* Total */}
-              {total > 0 && (
+              {role !== 'clipper' && total > 0 && (
                 <div style={{
                   padding: '4px 14px', borderBottom: '1px solid var(--border)',
                   background: 'var(--surface)', flexShrink: 0,

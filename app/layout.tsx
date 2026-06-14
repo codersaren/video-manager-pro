@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Parkinsans } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "./context/AuthContext";
 
 const parkinsans = Parkinsans({
   variable: "--font-parkinsans",
@@ -21,7 +22,9 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${parkinsans.variable} antialiased`}>
       <body className="min-h-screen" style={{ background: "#f7f6f3", color: "#1a1916" }} suppressHydrationWarning>
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );
