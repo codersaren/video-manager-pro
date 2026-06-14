@@ -1,6 +1,6 @@
 'use client';
 import { useRef } from 'react';
-import { Film, Home, Calendar, LayoutDashboard, Sliders, Upload, FolderOpen, TrendingUp } from 'lucide-react';
+import { Film, Home, Calendar, LayoutDashboard, Sliders, Upload, Download, FolderOpen, TrendingUp } from 'lucide-react';
 import { Proyecto, EstadoProyecto, ESTADOS } from '../types';
 
 type Vista = 'dashboard' | 'calendario' | 'tabla' | 'ajustes' | 'recursos' | 'ingresos';
@@ -45,9 +45,29 @@ interface Props {
   vista: Vista;
   setVista: (v: Vista) => void;
   onImport: (proyectos: Omit<Proyecto, 'id'>[]) => void;
+  proyectos: Proyecto[];
 }
 
-export function Sidebar({ vista, setVista, onImport }: Props) {
+function exportToCSV(proyectos: Proyecto[]) {
+  const headers = ['nombre', 'cliente', 'fechaEntrega', 'estado', 'precio', 'material', 'notas', 'prioridad', 'fechaInicio'];
+  const escape  = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const rows    = proyectos.map(p =>
+    [p.nombre, p.cliente, p.fechaEntrega, p.estado, p.precio,
+     p.material, p.notas, p.prioridad ?? '', p.fechaInicio ?? ''].map(escape).join(',')
+  );
+  // UTF-8 BOM (﻿) para que Excel abra con tildes correctamente
+  const csv  = '﻿' + [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), {
+    href: url,
+    download: `proyectos-${new Date().toISOString().split('T')[0]}.csv`,
+  });
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export function Sidebar({ vista, setVista, onImport, proyectos }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -148,6 +168,25 @@ export function Sidebar({ vista, setVista, onImport }: Props) {
           Importar CSV
         </button>
         <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={handleFile} className="hidden" />
+
+        <button
+          onClick={() => exportToCSV(proyectos)}
+          disabled={proyectos.length === 0}
+          className="flex items-center gap-2 w-full px-2.5 py-2 rounded-md text-sm transition-all"
+          style={{ color: 'var(--text-muted)' }}
+          onMouseEnter={e => {
+            if (proyectos.length === 0) return;
+            (e.currentTarget as HTMLElement).style.background = 'var(--surface-hover)';
+            (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLElement).style.background = 'transparent';
+            (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)';
+          }}
+        >
+          <Download size={14} strokeWidth={1.5} />
+          Exportar CSV
+        </button>
       </div>
     </aside>
   );

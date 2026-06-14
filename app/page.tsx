@@ -209,6 +209,7 @@ export default function Home() {
           vista={vista}
           setVista={v => { setVista(v); clearSelection(); }}
           onImport={importarProyectos}
+          proyectos={proyectos}
         />
 
         {/* ── Right column: header + main ── */}
