@@ -6,10 +6,8 @@ import { supabase } from '@/lib/supabase';
 const KEY = 'vm_recursos_v1';
 
 const supabaseReady = !!(
-  process.env.NEXT_PUBLIC_SUPABASE_URL &&
-  !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('TU_PROJECT_ID') &&
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-  !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.includes('TU_ANON_KEY_AQUI')
+  process.env.NEXT_PUBLIC_SUPABASE_URL?.startsWith('https://') &&
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 );
 
 function fromRow(row: Record<string, unknown>): Recurso {

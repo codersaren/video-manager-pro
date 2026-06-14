@@ -9,10 +9,8 @@ const STORAGE_KEY = 'video-manager-proyectos';
 // Supabase solo se usa cuando las credenciales reales están cargadas.
 // Mientras no estén configuradas, la app funciona igual que antes con localStorage.
 const supabaseReady = !!(
-  process.env.NEXT_PUBLIC_SUPABASE_URL &&
-  !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('TU_PROJECT_ID') &&
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-  !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.includes('TU_ANON_KEY_AQUI')
+  process.env.NEXT_PUBLIC_SUPABASE_URL?.startsWith('https://') &&
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 );
 
 function fromRow(row: Record<string, unknown>): Proyecto {
