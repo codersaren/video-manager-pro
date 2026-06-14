@@ -1,26 +1,46 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #f7f6f3;
+  --surface: #ffffff;
+  --surface-hover: #f1f0ed;
+  --border: #e9e8e4;
+  --border-strong: #ceccca;
+  --text-primary: #1a1916;
+  --text-secondary: #5c5b57;
+  --text-muted: #9b9a96;
+  --font: var(--font-parkinsans), 'Parkinsans', system-ui, sans-serif;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-xs: 6px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  font-family: var(--font);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
 }
+
+input, textarea, select {
+  font-family: var(--font);
+  border-radius: var(--radius-sm);
+}
+
+button {
+  font-family: var(--font);
+}
+
+/* Light scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d8d8d5; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #b0b0ab; }
+
+/* Date input */
+input[type="date"] { color-scheme: light; }
+
+/* Selection */
+::selection { background: #e8e8e4; }

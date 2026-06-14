@@ -1,65 +1,307 @@
-import Image from "next/image";
+'use client';
+import { useState, useMemo, useCallback } from 'react';
+import {
+  DndContext, DragEndEvent, DragStartEvent, DragOverlay,
+  PointerSensor, useSensor, useSensors, closestCenter,
+} from '@dnd-kit/core';
+import { useProjects } from './hooks/useProjects';
+import { useCardPreferences } from './hooks/useCardPreferences';
+import { useRecursos } from './hooks/useRecursos';
+import { Proyecto } from './types';
+import { getWeekStart, getTodayISO, toISODate, addDays } from './utils/dates';
+import { CardPrefsContext } from './context/CardPrefsContext';
+import { Sidebar } from './components/Sidebar';
+import { Header } from './components/Header';
+import { FilterBar, Filtros, FILTROS_EMPTY } from './components/FilterBar';
+import { WeeklyCalendar } from './components/WeeklyCalendar';
+import { MonthlyCalendar } from './components/MonthlyCalendar';
+import { TableView } from './components/TableView';
+import { SettingsView } from './components/SettingsView';
+import { RecursosView } from './components/RecursosView';
+import { IngresosView } from './components/IngresosView';
+import { DashboardView } from './components/DashboardView';
+import { ProjectModal } from './components/ProjectModal';
+import { SidePanel } from './components/SidePanel';
+import { BulkEditPanel } from './components/BulkEditPanel';
+import { ProjectCard } from './components/ProjectCard';
+
+type Vista = 'dashboard' | 'calendario' | 'tabla' | 'ajustes' | 'recursos' | 'ingresos';
 
 export default function Home() {
+  const {
+    proyectos, agregarProyecto, editarProyecto, eliminarProyecto,
+    editarProyectosMasa, eliminarProyectosMasa, importarProyectos,
+    reordenarProyectos, loaded,
+  } = useProjects();
+
+  const { prefs, updatePref, resetPrefs } = useCardPreferences();
+  const { recursos, agregarRecurso, editarRecurso, eliminarRecurso } = useRecursos();
+
+  const [vista, setVista]         = useState<Vista>('dashboard');
+  const [calView, setCalView]     = useState<'week' | 'month'>('week');
+  const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
+  const [monthDate, setMonthDate] = useState(() => new Date());
+  const [proyectoEditando, setProyectoEditando] = useState<Proyecto | null>(null);
+  const [modal, setModal]         = useState<{ open: boolean; fecha?: string }>({ open: false });
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [filtros, setFiltros]     = useState<Filtros>(FILTROS_EMPTY);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // ── Selection ────────────────────────────────────────────────────────
+  const toggleSelection = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+    setProyectoEditando(null);
+  }, []);
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  const handleCardClick = useCallback((p: Proyecto) => {
+    if (selectedIds.size > 0) toggleSelection(p.id);
+    else setProyectoEditando(p);
+  }, [selectedIds.size, toggleSelection]);
+
+  // ── Filters ──────────────────────────────────────────────────────────
+  const clientes = useMemo(() => {
+    const set = new Set(proyectos.filter(p => p.cliente.trim()).map(p => p.cliente.trim()));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [proyectos]);
+
+  const proyectosFiltrados = useMemo(() => proyectos.filter(p => {
+    if (filtros.estados.length > 0 && !filtros.estados.includes(p.estado)) return false;
+    if (filtros.cliente && p.cliente.trim() !== filtros.cliente) return false;
+    if (filtros.fecha !== 'todos') {
+      const hoy = getTodayISO();
+      if (filtros.fecha === 'hoy' && p.fechaEntrega !== hoy) return false;
+      if (filtros.fecha === 'semana') {
+        const s = toISODate(getWeekStart(new Date()));
+        const e = toISODate(addDays(getWeekStart(new Date()), 6));
+        if (p.fechaEntrega < s || p.fechaEntrega > e) return false;
+      }
+      if (filtros.fecha === 'mes') {
+        const now = new Date();
+        const prefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        if (!p.fechaEntrega.startsWith(prefix)) return false;
+      }
+    }
+    return true;
+  }), [proyectos, filtros]);
+
+  // ── Drag & drop ──────────────────────────────────────────────────────
+  const activeProject    = activeDragId ? proyectos.find(p => p.id === activeDragId) ?? null : null;
+  const draggingSelected = !!activeDragId && selectedIds.has(activeDragId) && selectedIds.size > 1;
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+
+  const handleDragStart = ({ active }: DragStartEvent) => setActiveDragId(active.id as string);
+
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    setActiveDragId(null);
+    if (!over || active.id === over.id) return;
+
+    const activeId  = active.id as string;
+    const overId    = over.id as string;
+    const activeProj = proyectos.find(p => p.id === activeId);
+    if (!activeProj) return;
+
+    // over.id is either a project id (dropped on a card) or a date string (dropped on empty column)
+    const overProj    = proyectos.find(p => p.id === overId);
+    const targetFecha = overProj ? overProj.fechaEntrega : overId;
+
+    if (activeProj.fechaEntrega === targetFecha) {
+      // Same column → reorder within the day
+      if (overProj) reordenarProyectos(activeId, overId);
+    } else {
+      // Different column → move to new date
+      if (selectedIds.has(activeId) && selectedIds.size > 1) {
+        selectedIds.forEach(id => {
+          const p = proyectos.find(proj => proj.id === id);
+          if (p && p.fechaEntrega !== targetFecha) editarProyecto(id, { fechaEntrega: targetFecha });
+        });
+      } else {
+        editarProyecto(activeId, { fechaEntrega: targetFecha });
+      }
+    }
+  };
+
+  // ── Loading ───────────────────────────────────────────────────────────
+  if (!loaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
+        <div className="w-6 h-6 border-2 rounded-full animate-spin"
+          style={{ borderColor: 'var(--border-strong)', borderTopColor: 'transparent' }} />
+      </div>
+    );
+  }
+
+  // ── Calendar content ──────────────────────────────────────────────────
+  const calendarContent = (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        {calView === 'week' ? (
+          <WeeklyCalendar
+            weekStart={weekStart}
+            proyectos={proyectosFiltrados}
+            onWeekChange={setWeekStart}
+            onCardClick={handleCardClick}
+            onAddClick={fecha => setModal({ open: true, fecha })}
+            selectedIds={selectedIds}
+            onCardSelect={toggleSelection}
+            activeDragId={activeDragId}
+            draggingSelected={draggingSelected}
+            onCardModeChange={m => updatePref('mode', m)}
+            calView={calView}
+            onCalViewChange={setCalView}
+          />
+        ) : (
+          <MonthlyCalendar
+            monthDate={monthDate}
+            proyectos={proyectosFiltrados}
+            onMonthChange={setMonthDate}
+            onCardClick={handleCardClick}
+            onAddClick={fecha => setModal({ open: true, fecha })}
+            selectedIds={selectedIds}
+            onCardSelect={toggleSelection}
+            activeDragId={activeDragId}
+            draggingSelected={draggingSelected}
+            onCardModeChange={m => updatePref('mode', m)}
+            calView={calView}
+            onCalViewChange={setCalView}
+          />
+        )}
+      </div>
+
+      <DragOverlay dropAnimation={null}>
+        {activeProject ? (
+          <div style={{ position: 'relative' }}>
+            <ProjectCard proyecto={activeProject} onClick={() => {}} overlay />
+            {draggingSelected && (
+              <div style={{
+                position: 'absolute', top: -7, right: -7,
+                width: 20, height: 20, borderRadius: '50%',
+                background: 'var(--text-primary)', color: 'var(--bg)',
+                fontSize: 11, fontWeight: 700,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {selectedIds.size}
+              </div>
+            )}
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
+  );
+
+  // ── Render ────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <CardPrefsContext.Provider value={prefs}>
+      <div className="flex" style={{ height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
+
+        <Sidebar
+          vista={vista}
+          setVista={v => { setVista(v); clearSelection(); }}
+          onImport={importarProyectos}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+
+        {/* ── Right column: header + main ── */}
+        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+
+          <Header vista={vista} onNewProject={() => setModal({ open: true })} />
+
+          {/* ── Main area ── */}
+          <main className="flex-1 min-h-0 overflow-hidden flex flex-col">
+
+            {vista === 'dashboard' ? (
+              <DashboardView proyectos={proyectos} onCardClick={handleCardClick} />
+
+            ) : vista === 'ajustes' ? (
+              <div className="flex-1 overflow-y-auto" style={{ padding: '28px 32px' }}>
+                <SettingsView prefs={prefs} onUpdate={updatePref} onReset={resetPrefs} />
+              </div>
+
+            ) : vista === 'tabla' ? (
+              <>
+                <div
+                  className="shrink-0 flex items-center"
+                  style={{ padding: '6px 28px', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}
+                >
+                  <FilterBar filtros={filtros} clientes={clientes} onChange={setFiltros} compact />
+                </div>
+                <div className="flex-1 min-h-0 flex overflow-hidden">
+                  <TableView
+                  proyectos={proyectosFiltrados}
+                  onEdit={handleCardClick}
+                  onStatusChange={(id, estado) => editarProyecto(id, { estado })}
+                />
+                </div>
+              </>
+
+            ) : vista === 'recursos' ? (
+              <RecursosView
+                recursos={recursos}
+                clientesSugeridos={clientes}
+                onAdd={agregarRecurso}
+                onEdit={editarRecurso}
+                onDelete={eliminarRecurso}
+              />
+
+            ) : vista === 'ingresos' ? (
+              <IngresosView proyectos={proyectos} />
+
+            ) : (
+              // ── Calendario — calendar is everything ──
+              <>
+                {/* Compact filter strip */}
+                <div
+                  className="shrink-0 flex items-center"
+                  style={{ padding: '6px 28px', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}
+                >
+                  <FilterBar filtros={filtros} clientes={clientes} onChange={setFiltros} compact />
+                </div>
+
+                {/* Calendar — fills all remaining height */}
+                {calendarContent}
+              </>
+            )}
+          </main>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </div>
+
+      {/* ── Panels (fixed overlay) ── */}
+      {vista !== 'ajustes' && vista !== 'recursos' && vista !== 'ingresos' && vista !== 'dashboard' && (
+        selectedIds.size > 0 ? (
+          <BulkEditPanel
+            selectedIds={selectedIds}
+            proyectos={proyectos}
+            onClose={clearSelection}
+            onApply={editarProyectosMasa}
+            onDelete={eliminarProyectosMasa}
+          />
+        ) : (
+          <SidePanel
+            proyecto={proyectoEditando}
+            onClose={() => setProyectoEditando(null)}
+            onSave={editarProyecto}
+            onDelete={eliminarProyecto}
+          />
+        )
+      )}
+
+      {modal.open && (
+        <ProjectModal
+          fechaInicial={modal.fecha}
+          onClose={() => setModal({ open: false })}
+          onSave={p => { agregarProyecto(p); setModal({ open: false }); }}
+        />
+      )}
+    </CardPrefsContext.Provider>
   );
 }
