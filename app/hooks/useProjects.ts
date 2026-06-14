@@ -78,24 +78,34 @@ export function useProjects() {
         .select('*')
         .order('sort_order', { ascending: true });
 
-      if (!error && data && data.length === 0) {
-        // BD vacía: migrar datos de localStorage automáticamente
-        try {
-          const stored = localStorage.getItem(STORAGE_KEY);
-          if (stored) {
+      if (error) console.error('[useProjects] SELECT error:', error.message);
+
+      if ((!error && data && data.length === 0) || error) {
+        // BD vacía o con error: intentar migrar desde localStorage
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          try {
             const local: Proyecto[] = JSON.parse(stored);
             if (local.length > 0) {
-              const ts = Date.now();
-              await supabase.from('proyectos').insert(
-                local.map((p, i) => ({ id: p.id, ...toRow(p), sort_order: ts + i }))
-              );
+              if (!error) {
+                const ts = Date.now();
+                const { error: insertError } = await supabase.from('proyectos').insert(
+                  local.map((p, i) => ({ id: p.id, ...toRow(p), sort_order: ts + i }))
+                );
+                if (insertError) {
+                  console.error('[useProjects] INSERT error:', insertError.message);
+                } else {
+                  localStorage.removeItem(STORAGE_KEY);
+                }
+              }
               setProyectos(local);
-              localStorage.removeItem(STORAGE_KEY);
               setLoaded(true);
               return;
             }
+          } catch (e) {
+            console.error('[useProjects] localStorage parse error:', e);
           }
-        } catch {}
+        }
       }
 
       if (!error && data) setProyectos(data.map(fromRow));
