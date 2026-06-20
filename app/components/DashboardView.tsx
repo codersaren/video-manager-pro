@@ -6,10 +6,10 @@ import { getTodayISO } from '../utils/dates';
 
 const STATUS_COLOR: Record<string, string> = {
   pendiente: '#d97706', editando: '#2563eb', revision: '#9333ea',
-  entregado: '#16a34a', pagado: '#6b7280', en_espera: '#0891b2',
+  entregado: '#16a34a', pagado: '#6b7280', en_espera: '#0891b2', cancelado: '#dc2626',
 };
 
-const FINISHED = new Set(['entregado', 'pagado']);
+const FINISHED = new Set(['entregado', 'pagado', 'cancelado']);
 
 function diffDays(a: string, b: string): number {
   const da = new Date(a + 'T00:00:00');

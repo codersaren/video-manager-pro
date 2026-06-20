@@ -4,7 +4,7 @@ import { EstadoProyecto, ESTADOS, ESTADO_CONFIG } from '../types';
 
 const STATUS_COLOR: Record<string, string> = {
   pendiente: '#d97706', editando: '#2563eb', revision: '#9333ea',
-  entregado: '#16a34a', pagado: '#9ca3af', en_espera: '#0891b2',
+  entregado: '#16a34a', pagado: '#9ca3af', en_espera: '#0891b2', cancelado: '#dc2626',
 };
 
 export type FechaFiltro = 'todos' | 'hoy' | 'semana' | 'mes';

@@ -10,6 +10,7 @@ const STATUS_COLOR: Record<string, string> = {
   entregado: '#22c55e',
   pagado: '#9ca3af',
   en_espera: '#0891b2',
+  cancelado:  '#dc2626',
 };
 
 const labelStyle: React.CSSProperties = {

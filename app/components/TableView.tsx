@@ -16,6 +16,7 @@ const COLUMNS: { estado: EstadoProyecto; label: string; color: string }[] = [
   { estado: 'entregado', label: 'Entregado', color: '#22c55e' },
   { estado: 'pagado',    label: 'Pagado',    color: '#6b7280' },
   { estado: 'en_espera', label: 'En espera', color: '#0891b2' },
+  { estado: 'cancelado',  label: 'Cancelado',  color: '#dc2626' },
 ];
 
 interface Props {

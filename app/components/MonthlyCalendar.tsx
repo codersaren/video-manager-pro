@@ -14,7 +14,7 @@ const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','A
 
 const STATUS_SOLID: Record<string, string> = {
   pendiente: '#d97706', editando: '#2563eb', revision: '#9333ea',
-  entregado: '#16a34a', pagado: '#6b7280', en_espera: '#0891b2',
+  entregado: '#16a34a', pagado: '#6b7280', en_espera: '#0891b2', cancelado: '#dc2626',
 };
 
 function getMonthGrid(year: number, month: number) {

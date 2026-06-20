@@ -41,6 +41,7 @@ const STATUS_BORDER: Record<string, string> = {
   entregado: '#22c55e',
   pagado: '#9ca3af',
   en_espera: '#0891b2',
+  cancelado:  '#dc2626',
 };
 
 export function SidePanel({ proyecto, onClose, onSave, onDelete }: Props) {

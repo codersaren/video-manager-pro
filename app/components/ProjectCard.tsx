@@ -24,6 +24,7 @@ const STATUS: Record<string, { solid: string; bg: string; bgHover: string; borde
   entregado: { solid: '#16a34a', bg: '#22c55e18', bgHover: '#22c55e28', border: '#22c55e50', borderSelected: '#22c55e90' },
   pagado:    { solid: '#6b7280', bg: '#9ca3af18', bgHover: '#9ca3af28', border: '#9ca3af50', borderSelected: '#9ca3af90' },
   en_espera: { solid: '#0891b2', bg: '#06b6d418', bgHover: '#06b6d428', border: '#06b6d450', borderSelected: '#06b6d490' },
+  cancelado:  { solid: '#dc2626', bg: '#dc262618', bgHover: '#dc262628', border: '#dc262650', borderSelected: '#dc262690' },
 };
 
 export function ProjectCard({ proyecto, onClick, onSelect, selected = false, isDimmed = false, overlay = false }: Props) {

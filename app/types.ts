@@ -1,4 +1,4 @@
-export type EstadoProyecto = 'pendiente' | 'editando' | 'revision' | 'entregado' | 'pagado' | 'en_espera';
+export type EstadoProyecto = 'pendiente' | 'editando' | 'revision' | 'entregado' | 'pagado' | 'en_espera' | 'cancelado';
 export type Prioridad = 'alta' | 'media' | 'baja';
 export const PRIORIDADES: Prioridad[] = ['alta', 'media', 'baja'];
 export const PRIORIDAD_CONFIG: Record<Prioridad, { label: string; color: string }> = {
@@ -42,7 +42,7 @@ export interface Proyecto {
   prioridad?: Prioridad;
 }
 
-export const ESTADOS: EstadoProyecto[] = ['pendiente', 'editando', 'revision', 'entregado', 'pagado', 'en_espera'];
+export const ESTADOS: EstadoProyecto[] = ['pendiente', 'editando', 'revision', 'entregado', 'pagado', 'en_espera', 'cancelado'];
 
 export interface Recurso {
   id: string;
@@ -93,5 +93,11 @@ export const ESTADO_CONFIG: Record<EstadoProyecto, {
     border: 'border-l-cyan-500',
     badge: 'bg-cyan-50 text-cyan-700 border border-cyan-200',
     dot: 'bg-cyan-500',
+  },
+  cancelado: {
+    label: 'Cancelado',
+    border: 'border-l-red-600',
+    badge: 'bg-red-50 text-red-700 border border-red-200',
+    dot: 'bg-red-600',
   },
 };

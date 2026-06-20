@@ -8,11 +8,11 @@ const AMBER = '#d97706';
 
 const STATUS_SOLID: Record<string, string> = {
   pendiente: AMBER, editando: '#2563eb', revision: '#9333ea',
-  entregado: GREEN, pagado: '#6b7280', en_espera: '#0891b2',
+  entregado: GREEN, pagado: '#6b7280', en_espera: '#0891b2', cancelado: '#dc2626',
 };
 const STATUS_LABEL: Record<string, string> = {
   pendiente: 'Pendiente', editando: 'En edición', revision: 'Revisión',
-  entregado: 'Entregado', pagado: 'Pagado', en_espera: 'En espera',
+  entregado: 'Entregado', pagado: 'Pagado', en_espera: 'En espera', cancelado: 'Cancelado',
 };
 
 const MONTH_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -32,7 +32,7 @@ function fmtDate(iso: string) {
 interface Props { proyectos: Proyecto[]; }
 
 export function IngresosView({ proyectos }: Props) {
-  const conPrecio = useMemo(() => proyectos.filter(p => p.precio > 0), [proyectos]);
+  const conPrecio = useMemo(() => proyectos.filter(p => p.precio > 0 && p.estado !== 'cancelado'), [proyectos]);
 
   const totals = useMemo(() => {
     const cobrado   = conPrecio.filter(p => p.estado === 'pagado').reduce((s, p) => s + p.precio, 0);
