@@ -1,5 +1,5 @@
 'use client';
-import { X } from 'lucide-react';
+import { X, Search } from 'lucide-react';
 import { EstadoProyecto, ESTADOS, ESTADO_CONFIG } from '../types';
 
 const STATUS_COLOR: Record<string, string> = {
@@ -13,9 +13,10 @@ export interface Filtros {
   estados: EstadoProyecto[];
   cliente: string;
   fecha: FechaFiltro;
+  busqueda: string;
 }
 
-export const FILTROS_EMPTY: Filtros = { estados: [], cliente: '', fecha: 'todos' };
+export const FILTROS_EMPTY: Filtros = { estados: [], cliente: '', fecha: 'todos', busqueda: '' };
 
 const FECHAS: { value: FechaFiltro; label: string }[] = [
   { value: 'todos', label: 'Todas' },
@@ -32,7 +33,7 @@ interface Props {
 }
 
 export function FilterBar({ filtros, clientes, onChange, compact = false }: Props) {
-  const hasActive = filtros.estados.length > 0 || filtros.cliente !== '' || filtros.fecha !== 'todos';
+  const hasActive = filtros.estados.length > 0 || filtros.cliente !== '' || filtros.fecha !== 'todos' || filtros.busqueda !== '';
 
   const toggleEstado = (e: EstadoProyecto) => {
     const next = filtros.estados.includes(e)
@@ -46,6 +47,27 @@ export function FilterBar({ filtros, clientes, onChange, compact = false }: Prop
       className="flex flex-wrap items-center gap-x-3 gap-y-1.5"
       style={compact ? {} : { borderBottom: '1px solid var(--border)', paddingBottom: 16, marginBottom: 24 }}
     >
+      {/* Buscador */}
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+        <Search size={12} style={{ position: 'absolute', left: 7, color: 'var(--text-muted)', pointerEvents: 'none' }} />
+        <input
+          type="text"
+          placeholder="Buscar proyecto..."
+          value={filtros.busqueda}
+          onChange={e => onChange({ ...filtros, busqueda: e.target.value })}
+          style={{
+            paddingLeft: 24, paddingRight: 8, paddingTop: 3, paddingBottom: 3,
+            fontSize: 12, borderRadius: 'var(--radius-xs)',
+            border: '1px solid', borderColor: filtros.busqueda ? 'var(--border-strong)' : 'var(--border)',
+            background: filtros.busqueda ? 'var(--surface-hover)' : 'transparent',
+            color: 'var(--text-primary)', outline: 'none', width: 160,
+            fontFamily: 'var(--font)',
+          }}
+        />
+      </div>
+
+      <div className="shrink-0" style={{ width: 1, height: 16, background: 'var(--border)' }} />
+
       {/* Estado */}
       <div className="flex items-center gap-1.5">
         <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Estado</span>
