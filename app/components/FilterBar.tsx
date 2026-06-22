@@ -1,5 +1,6 @@
 'use client';
-import { X, Search } from 'lucide-react';
+import { X, Search, Eye, EyeOff } from 'lucide-react';
+import { useRef, useState, useEffect } from 'react';
 import { EstadoProyecto, ESTADOS, ESTADO_CONFIG } from '../types';
 
 const STATUS_COLOR: Record<string, string> = {
@@ -14,9 +15,10 @@ export interface Filtros {
   cliente: string;
   fecha: FechaFiltro;
   busqueda: string;
+  clientesOcultos: string[];
 }
 
-export const FILTROS_EMPTY: Filtros = { estados: [], cliente: '', fecha: 'todos', busqueda: '' };
+export const FILTROS_EMPTY: Filtros = { estados: [], cliente: '', fecha: 'todos', busqueda: '', clientesOcultos: [] };
 
 const FECHAS: { value: FechaFiltro; label: string }[] = [
   { value: 'todos', label: 'Todas' },
@@ -33,13 +35,35 @@ interface Props {
 }
 
 export function FilterBar({ filtros, clientes, onChange, compact = false }: Props) {
-  const hasActive = filtros.estados.length > 0 || filtros.cliente !== '' || filtros.fecha !== 'todos' || filtros.busqueda !== '';
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  const hasActive = filtros.estados.length > 0 || filtros.cliente !== '' || filtros.fecha !== 'todos' || filtros.busqueda !== '' || filtros.clientesOcultos.length > 0;
+  const hayOcultos = filtros.clientesOcultos.length > 0;
+
+  useEffect(() => {
+    if (!popoverOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setPopoverOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [popoverOpen]);
 
   const toggleEstado = (e: EstadoProyecto) => {
     const next = filtros.estados.includes(e)
       ? filtros.estados.filter(s => s !== e)
       : [...filtros.estados, e];
     onChange({ ...filtros, estados: next });
+  };
+
+  const toggleOculto = (cliente: string) => {
+    const next = filtros.clientesOcultos.includes(cliente)
+      ? filtros.clientesOcultos.filter(c => c !== cliente)
+      : [...filtros.clientesOcultos, cliente];
+    onChange({ ...filtros, clientesOcultos: next });
   };
 
   const inner = (
@@ -84,12 +108,8 @@ export function FilterBar({ filtros, clientes, onChange, compact = false }: Prop
                 borderColor: active ? STATUS_COLOR[e] + '70' : 'var(--border)',
                 color: active ? STATUS_COLOR[e] : 'var(--text-secondary)',
               }}
-              onMouseEnter={ev => {
-                if (!active) (ev.currentTarget as HTMLElement).style.background = 'var(--surface-hover)';
-              }}
-              onMouseLeave={ev => {
-                (ev.currentTarget as HTMLElement).style.background = active ? STATUS_COLOR[e] + '18' : 'transparent';
-              }}
+              onMouseEnter={ev => { if (!active) (ev.currentTarget as HTMLElement).style.background = 'var(--surface-hover)'; }}
+              onMouseLeave={ev => { (ev.currentTarget as HTMLElement).style.background = active ? STATUS_COLOR[e] + '18' : 'transparent'; }}
             >
               {ESTADO_CONFIG[e].label}
             </button>
@@ -118,6 +138,57 @@ export function FilterBar({ filtros, clientes, onChange, compact = false }: Prop
           <option value="">Todos</option>
           {clientes.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
+
+        {/* Botón visibilidad */}
+        <div ref={popoverRef} style={{ position: 'relative' }}>
+          <button
+            onClick={() => setPopoverOpen(v => !v)}
+            title="Mostrar/ocultar clientes"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: '3px 7px', fontSize: 12, borderRadius: 'var(--radius-xs)',
+              border: '1px solid', borderColor: hayOcultos ? 'var(--border-strong)' : 'var(--border)',
+              background: hayOcultos ? 'var(--surface-hover)' : 'transparent',
+              color: hayOcultos ? 'var(--text-primary)' : 'var(--text-muted)',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={ev => { (ev.currentTarget as HTMLElement).style.background = 'var(--surface-hover)'; }}
+            onMouseLeave={ev => { (ev.currentTarget as HTMLElement).style.background = hayOcultos ? 'var(--surface-hover)' : 'transparent'; }}
+          >
+            {hayOcultos ? <EyeOff size={12} /> : <Eye size={12} />}
+            {hayOcultos && <span>{filtros.clientesOcultos.length} oculto{filtros.clientesOcultos.length > 1 ? 's' : ''}</span>}
+          </button>
+
+          {popoverOpen && clientes.length > 0 && (
+            <div style={{
+              position: 'absolute', top: '100%', left: 0, marginTop: 4, zIndex: 50,
+              background: 'var(--surface)', border: '1px solid var(--border)',
+              borderRadius: 'var(--radius)', padding: '6px 0', minWidth: 180,
+              boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+            }}>
+              {clientes.map(c => {
+                const oculto = filtros.clientesOcultos.includes(c);
+                return (
+                  <button
+                    key={c}
+                    onClick={() => toggleOculto(c)}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      gap: 8, padding: '5px 12px', fontSize: 12, textAlign: 'left',
+                      background: 'transparent', border: 'none', cursor: 'pointer',
+                      color: oculto ? 'var(--text-muted)' : 'var(--text-primary)',
+                    }}
+                    onMouseEnter={ev => { (ev.currentTarget as HTMLElement).style.background = 'var(--surface-hover)'; }}
+                    onMouseLeave={ev => { (ev.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                  >
+                    <span style={{ textDecoration: oculto ? 'line-through' : 'none' }}>{c}</span>
+                    {oculto ? <EyeOff size={12} /> : <Eye size={12} />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="shrink-0" style={{ width: 1, height: 16, background: 'var(--border)' }} />

@@ -76,6 +76,7 @@ export default function Home() {
   }, [proyectos]);
 
   const proyectosFiltrados = useMemo(() => proyectos.filter(p => {
+    if (filtros.clientesOcultos.length > 0 && filtros.clientesOcultos.includes(p.cliente.trim())) return false;
     if (filtros.busqueda) {
       const q = filtros.busqueda.toLowerCase();
       if (!p.nombre.toLowerCase().includes(q) && !p.cliente.toLowerCase().includes(q)) return false;
