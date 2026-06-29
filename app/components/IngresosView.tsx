@@ -1,5 +1,5 @@
 'use client';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Proyecto } from '../types';
 
 const GREEN = '#16a34a';
@@ -32,20 +32,51 @@ function fmtDate(iso: string) {
 interface Props { proyectos: Proyecto[]; }
 
 export function IngresosView({ proyectos }: Props) {
+  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set(['cobrado', 'porCobrar', 'enCurso']));
+  const [hiddenClients, setHiddenClients] = useState<Set<string>>(new Set());
+
   const conPrecio = useMemo(() => proyectos.filter(p => p.precio > 0 && p.estado !== 'cancelado'), [proyectos]);
 
+  const filtered = useMemo(() => conPrecio.filter(p => {
+    const client = p.cliente || '—';
+    if (hiddenClients.has(client)) return false;
+    if (p.estado === 'pagado' && !statusFilter.has('cobrado')) return false;
+    if (p.estado === 'entregado' && !statusFilter.has('porCobrar')) return false;
+    if (p.estado !== 'pagado' && p.estado !== 'entregado' && !statusFilter.has('enCurso')) return false;
+    return true;
+  }), [conPrecio, statusFilter, hiddenClients]);
+
+  const toggleStatus = (key: string) => {
+    setStatusFilter(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) { if (next.size > 1) next.delete(key); }
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const toggleClient = (client: string) => {
+    setHiddenClients(prev => {
+      const next = new Set(prev);
+      if (next.has(client)) next.delete(client); else next.add(client);
+      return next;
+    });
+  };
+
+  const hasActiveFilters = statusFilter.size < 3 || hiddenClients.size > 0;
+
   const totals = useMemo(() => {
-    const cobrado   = conPrecio.filter(p => p.estado === 'pagado').reduce((s, p) => s + p.precio, 0);
-    const porCobrar = conPrecio.filter(p => p.estado === 'entregado').reduce((s, p) => s + p.precio, 0);
-    const enCurso   = conPrecio.filter(p => p.estado !== 'pagado' && p.estado !== 'entregado').reduce((s, p) => s + p.precio, 0);
+    const cobrado   = filtered.filter(p => p.estado === 'pagado').reduce((s, p) => s + p.precio, 0);
+    const porCobrar = filtered.filter(p => p.estado === 'entregado').reduce((s, p) => s + p.precio, 0);
+    const enCurso   = filtered.filter(p => p.estado !== 'pagado' && p.estado !== 'entregado').reduce((s, p) => s + p.precio, 0);
     return { cobrado, porCobrar, enCurso, total: cobrado + porCobrar + enCurso };
-  }, [conPrecio]);
+  }, [filtered]);
 
   const counts = useMemo(() => ({
-    cobrado:   conPrecio.filter(p => p.estado === 'pagado').length,
-    porCobrar: conPrecio.filter(p => p.estado === 'entregado').length,
-    enCurso:   conPrecio.filter(p => p.estado !== 'pagado' && p.estado !== 'entregado').length,
-  }), [conPrecio]);
+    cobrado:   filtered.filter(p => p.estado === 'pagado').length,
+    porCobrar: filtered.filter(p => p.estado === 'entregado').length,
+    enCurso:   filtered.filter(p => p.estado !== 'pagado' && p.estado !== 'entregado').length,
+  }), [filtered]);
 
   // Last 12 months data
   const monthly = useMemo(() => {
@@ -55,18 +86,18 @@ export function IngresosView({ proyectos }: Props) {
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const isCurrent = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
       const label = MONTH_SHORT[d.getMonth()] + (d.getFullYear() !== now.getFullYear() ? ` '${String(d.getFullYear()).slice(2)}` : '');
-      const mp = conPrecio.filter(p => p.fechaEntrega.startsWith(key));
+      const mp = filtered.filter(p => p.fechaEntrega.startsWith(key));
       const cobrado   = mp.filter(p => p.estado === 'pagado').reduce((s, p) => s + p.precio, 0);
       const porCobrar = mp.filter(p => p.estado === 'entregado').reduce((s, p) => s + p.precio, 0);
       const enCurso   = mp.filter(p => p.estado !== 'pagado' && p.estado !== 'entregado').reduce((s, p) => s + p.precio, 0);
       return { key, label, isCurrent, cobrado, porCobrar, enCurso, total: cobrado + porCobrar + enCurso };
     });
-  }, [conPrecio]);
+  }, [filtered]);
 
   const maxMonthly = useMemo(() => Math.max(...monthly.map(m => m.total), 1), [monthly]);
 
-  // By client
-  const byClient = useMemo(() => {
+  // By client — always from full conPrecio so hidden clients still appear as toggleable
+  const byClientAll = useMemo(() => {
     const map = new Map<string, { cobrado: number; porCobrar: number; enCurso: number; count: number }>();
     conPrecio.forEach(p => {
       const key = p.cliente || '—';
@@ -82,9 +113,11 @@ export function IngresosView({ proyectos }: Props) {
       .sort((a, b) => b.total - a.total);
   }, [conPrecio]);
 
+  const byClient = byClientAll;
+
   const maxClient = useMemo(() => Math.max(...byClient.map(c => c.total), 1), [byClient]);
 
-  const sortedProjects = useMemo(() => [...conPrecio].sort((a, b) => b.precio - a.precio), [conPrecio]);
+  const sortedProjects = useMemo(() => [...filtered].sort((a, b) => b.precio - a.precio), [filtered]);
 
   // ── Empty state ──────────────────────────────────────────────────────────
   if (conPrecio.length === 0) {
@@ -112,8 +145,51 @@ export function IngresosView({ proyectos }: Props) {
     { label: 'En curso',        value: totals.enCurso,   count: counts.enCurso,   color: AMBER, bar: pct(totals.enCurso) },
   ];
 
+  const STATUS_PILLS = [
+    { key: 'cobrado',   label: 'Cobrado',     color: GREEN },
+    { key: 'porCobrar', label: 'Por cobrar',  color: BLUE  },
+    { key: 'enCurso',   label: 'En curso',    color: AMBER },
+  ];
+
   return (
     <div className="flex-1 overflow-y-auto" style={{ padding: '28px 32px' }}>
+
+      {/* ── Filter bar ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 4 }}>Ver:</span>
+        {STATUS_PILLS.map(pill => {
+          const active = statusFilter.has(pill.key);
+          return (
+            <button
+              key={pill.key}
+              onClick={() => toggleStatus(pill.key)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '4px 10px', borderRadius: 20, cursor: 'pointer', transition: 'all 0.15s',
+                fontSize: 12, fontWeight: 600, border: `1.5px solid ${pill.color}`,
+                background: active ? pill.color + '20' : 'transparent',
+                color: active ? pill.color : 'var(--text-muted)',
+                opacity: active ? 1 : 0.5,
+              }}
+            >
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: pill.color, flexShrink: 0 }} />
+              {pill.label}
+            </button>
+          );
+        })}
+        {hasActiveFilters && (
+          <button
+            onClick={() => { setStatusFilter(new Set(['cobrado', 'porCobrar', 'enCurso'])); setHiddenClients(new Set()); }}
+            style={{
+              marginLeft: 4, padding: '4px 10px', borderRadius: 20, cursor: 'pointer',
+              fontSize: 11, border: '1.5px solid var(--border)',
+              background: 'transparent', color: 'var(--text-muted)',
+            }}
+          >
+            Limpiar filtros
+          </button>
+        )}
+      </div>
 
       {/* ── Summary cards ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
@@ -217,36 +293,54 @@ export function IngresosView({ proyectos }: Props) {
           </span>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {byClient.map(c => (
-              <div key={c.cliente}>
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 5 }}>
-                  <span style={{
-                    fontSize: 12, fontWeight: 600, color: 'var(--text-primary)',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: 6,
-                  }}>
-                    {c.cliente}
-                  </span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', flexShrink: 0 }}>
-                    {fmt(c.total)}
-                  </span>
+            {byClient.map(c => {
+              const hidden = hiddenClients.has(c.cliente);
+              return (
+                <div key={c.cliente} style={{ opacity: hidden ? 0.4 : 1, transition: 'opacity 0.2s' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: hidden ? 0 : 5 }}>
+                    <span style={{
+                      fontSize: 12, fontWeight: 600, color: 'var(--text-primary)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: 6,
+                    }}>
+                      {c.cliente}
+                    </span>
+                    <button
+                      onClick={() => toggleClient(c.cliente)}
+                      title={hidden ? 'Mostrar cliente' : 'Ocultar cliente'}
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 0 4px',
+                        color: 'var(--text-muted)', fontSize: 14, lineHeight: 1, flexShrink: 0,
+                      }}
+                    >
+                      {hidden ? '👁' : '✕'}
+                    </button>
+                    {!hidden && (
+                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', flexShrink: 0, marginLeft: 4 }}>
+                        {fmt(c.total)}
+                      </span>
+                    )}
+                  </div>
+                  {!hidden && (
+                    <>
+                      <div style={{ height: 6, borderRadius: 3, background: 'var(--bg)', overflow: 'hidden', display: 'flex', marginBottom: 3 }}>
+                        {c.cobrado > 0 && (
+                          <div style={{ width: `${(c.cobrado / maxClient) * 100}%`, background: GREEN }} />
+                        )}
+                        {c.porCobrar > 0 && (
+                          <div style={{ width: `${(c.porCobrar / maxClient) * 100}%`, background: BLUE }} />
+                        )}
+                        {c.enCurso > 0 && (
+                          <div style={{ width: `${(c.enCurso / maxClient) * 100}%`, background: AMBER }} />
+                        )}
+                      </div>
+                      <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                        {c.count} proyecto{c.count !== 1 ? 's' : ''}
+                      </span>
+                    </>
+                  )}
                 </div>
-                {/* Stacked bar */}
-                <div style={{ height: 6, borderRadius: 3, background: 'var(--bg)', overflow: 'hidden', display: 'flex', marginBottom: 3 }}>
-                  {c.cobrado > 0 && (
-                    <div style={{ width: `${(c.cobrado / maxClient) * 100}%`, background: GREEN }} />
-                  )}
-                  {c.porCobrar > 0 && (
-                    <div style={{ width: `${(c.porCobrar / maxClient) * 100}%`, background: BLUE }} />
-                  )}
-                  {c.enCurso > 0 && (
-                    <div style={{ width: `${(c.enCurso / maxClient) * 100}%`, background: AMBER }} />
-                  )}
-                </div>
-                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                  {c.count} proyecto{c.count !== 1 ? 's' : ''}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -259,6 +353,9 @@ export function IngresosView({ proyectos }: Props) {
         <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--border)' }}>
           <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
             Proyectos · {sortedProjects.length}
+            {sortedProjects.length !== conPrecio.length && (
+              <span style={{ fontWeight: 400, marginLeft: 4 }}>de {conPrecio.length}</span>
+            )}
           </span>
         </div>
         {sortedProjects.map((p, idx) => {
