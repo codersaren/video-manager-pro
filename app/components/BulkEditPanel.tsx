@@ -47,6 +47,7 @@ interface BulkForm {
   estado: EstadoProyecto | '';
   fechaEntrega: string;
   cliente: string;
+  precio: string;
 }
 
 function getCommon<T>(items: T[], key: keyof T): T[keyof T] | null {
@@ -56,7 +57,7 @@ function getCommon<T>(items: T[], key: keyof T): T[keyof T] | null {
 }
 
 export function BulkEditPanel({ selectedIds, proyectos, onClose, onApply, onDelete }: Props) {
-  const [form, setForm] = useState<BulkForm>({ estado: '', fechaEntrega: '', cliente: '' });
+  const [form, setForm] = useState<BulkForm>({ estado: '', fechaEntrega: '', cliente: '', precio: '' });
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const selected = proyectos.filter(p => selectedIds.has(p.id));
@@ -69,6 +70,7 @@ export function BulkEditPanel({ selectedIds, proyectos, onClose, onApply, onDele
       estado: (getCommon(selected, 'estado') as EstadoProyecto | null) ?? '',
       fechaEntrega: getCommon(selected, 'fechaEntrega') as string ?? '',
       cliente: getCommon(selected, 'cliente') as string ?? '',
+      precio: '',
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedIds]);
@@ -78,10 +80,28 @@ export function BulkEditPanel({ selectedIds, proyectos, onClose, onApply, onDele
     if (form.estado) cambios.estado = form.estado;
     if (form.fechaEntrega) cambios.fechaEntrega = form.fechaEntrega;
     if (form.cliente !== '') cambios.cliente = form.cliente;
+    if (form.precio !== '') cambios.precio = Number(form.precio);
     if (Object.keys(cambios).length > 0) {
       onApply(Array.from(selectedIds), cambios);
     }
     onClose();
+  };
+
+  // Quick date helpers
+  const shiftDate = (days: number) => {
+    const latest = selected.reduce((max, p) => p.fechaEntrega > max ? p.fechaEntrega : max, selected[0]?.fechaEntrega ?? '');
+    if (!latest) return;
+    const d = new Date(latest + 'T00:00:00');
+    d.setDate(d.getDate() + days);
+    setForm(f => ({ ...f, fechaEntrega: d.toISOString().split('T')[0] }));
+  };
+
+  const nextMonth = () => {
+    const base = form.fechaEntrega || selected.reduce((max, p) => p.fechaEntrega > max ? p.fechaEntrega : max, selected[0]?.fechaEntrega ?? '');
+    if (!base) return;
+    const d = new Date(base + 'T00:00:00');
+    d.setMonth(d.getMonth() + 1);
+    setForm(f => ({ ...f, fechaEntrega: d.toISOString().split('T')[0] }));
   };
 
   const handleDelete = () => {
@@ -213,6 +233,35 @@ export function BulkEditPanel({ selectedIds, proyectos, onClose, onApply, onDele
               onFocus={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; }}
               onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
             />
+            {/* Quick shift buttons */}
+            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+              {[
+                { label: '+1 sem', days: 7 },
+                { label: '+2 sem', days: 14 },
+              ].map(btn => (
+                <button
+                  key={btn.label}
+                  onClick={() => shiftDate(btn.days)}
+                  style={{
+                    flex: 1, padding: '5px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                    fontSize: 11, fontWeight: 600, border: '1px solid var(--border)',
+                    background: 'var(--surface)', color: 'var(--text-secondary)',
+                  }}
+                >
+                  {btn.label}
+                </button>
+              ))}
+              <button
+                onClick={nextMonth}
+                style={{
+                  flex: 1, padding: '5px 0', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                  fontSize: 11, fontWeight: 600, border: '1px solid var(--border)',
+                  background: 'var(--surface)', color: 'var(--text-secondary)',
+                }}
+              >
+                → mes sig.
+              </button>
+            </div>
             {!form.fechaEntrega && (
               <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>
                 {(() => {
@@ -229,6 +278,21 @@ export function BulkEditPanel({ selectedIds, proyectos, onClose, onApply, onDele
             <input
               value={form.cliente}
               onChange={e => setForm(f => ({ ...f, cliente: e.target.value }))}
+              placeholder="Dejar vacío para no cambiar"
+              style={inputStyle}
+              onFocus={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; }}
+              onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
+            />
+          </div>
+
+          {/* Precio */}
+          <div>
+            <label style={labelStyle}>Precio (€)</label>
+            <input
+              type="number"
+              min="0"
+              value={form.precio}
+              onChange={e => setForm(f => ({ ...f, precio: e.target.value }))}
               placeholder="Dejar vacío para no cambiar"
               style={inputStyle}
               onFocus={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; }}

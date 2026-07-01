@@ -233,7 +233,12 @@ export default function Home() {
           <main className="flex-1 min-h-0 overflow-hidden flex flex-col">
 
             {vista === 'dashboard' ? (
-              <DashboardView proyectos={proyectos} onCardClick={handleCardClick} />
+              <DashboardView
+                proyectos={proyectos}
+                onCardClick={handleCardClick}
+                selectedIds={selectedIds}
+                onSelectAll={(ids) => setSelectedIds(prev => new Set([...prev, ...ids]))}
+              />
 
             ) : vista === 'ajustes' ? (
               <div className="flex-1 overflow-y-auto" style={{ padding: '28px 32px' }}>
@@ -291,7 +296,7 @@ export default function Home() {
       </div>
 
       {/* ── Panels (fixed overlay) ── */}
-      {vista !== 'ajustes' && vista !== 'recursos' && vista !== 'ingresos' && vista !== 'dashboard' && (
+      {vista !== 'ajustes' && vista !== 'recursos' && vista !== 'ingresos' && (
         selectedIds.size > 0 ? (
           <BulkEditPanel
             selectedIds={selectedIds}

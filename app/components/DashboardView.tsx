@@ -144,22 +144,43 @@ interface SectionProps {
   count: number;
   children: React.ReactNode;
   emptyText: string;
+  sectionIds?: string[];
+  selectedIds?: Set<string>;
+  onSelectAll?: (ids: string[]) => void;
 }
 
-function Section({ title, color, count, children, emptyText }: SectionProps) {
+function Section({ title, color, count, children, emptyText, sectionIds, selectedIds, onSelectAll }: SectionProps) {
+  const allSelected = sectionIds && sectionIds.length > 0 && sectionIds.every(id => selectedIds?.has(id));
+
   return (
     <div style={{
       background: 'var(--surface)', border: '1px solid var(--border)',
       borderRadius: 'var(--radius)', overflow: 'hidden',
     }}>
-      <div style={{
-        padding: '10px 16px', borderBottom: '1px solid var(--border)',
-        display: 'flex', alignItems: 'center', gap: 8,
-        background: 'var(--surface)',
-      }}>
+      <div
+        style={{
+          padding: '10px 16px', borderBottom: '1px solid var(--border)',
+          display: 'flex', alignItems: 'center', gap: 8,
+          background: 'var(--surface)',
+        }}
+      >
         <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: color ?? 'var(--text-muted)', flex: 1 }}>
           {title}
         </span>
+        {onSelectAll && sectionIds && sectionIds.length > 0 && (
+          <button
+            onClick={() => onSelectAll(sectionIds)}
+            style={{
+              fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 8, cursor: 'pointer',
+              border: `1px solid ${allSelected ? (color ?? '#6b7280') + '60' : 'var(--border)'}`,
+              background: allSelected ? (color ?? '#6b7280') + '15' : 'transparent',
+              color: allSelected ? (color ?? 'var(--text-secondary)') : 'var(--text-muted)',
+              transition: 'all 0.15s',
+            }}
+          >
+            {allSelected ? 'Deseleccionar' : 'Seleccionar todo'}
+          </button>
+        )}
         <span style={{
           fontSize: 10, fontWeight: 700,
           background: (color ?? '#6b7280') + '20', color: color ?? 'var(--text-muted)',
@@ -182,9 +203,11 @@ function Section({ title, color, count, children, emptyText }: SectionProps) {
 interface Props {
   proyectos: Proyecto[];
   onCardClick: (p: Proyecto) => void;
+  selectedIds?: Set<string>;
+  onSelectAll?: (ids: string[]) => void;
 }
 
-export function DashboardView({ proyectos, onCardClick }: Props) {
+export function DashboardView({ proyectos, onCardClick, selectedIds, onSelectAll }: Props) {
   const today = getTodayISO();
 
   const activos = useMemo(() =>
@@ -271,17 +294,20 @@ export function DashboardView({ proyectos, onCardClick }: Props) {
 
       {/* Main grid: vencidos + hoy */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-        <Section title="Vencidos" color="#ef4444" count={vencidos.length} emptyText="Sin proyectos vencidos 🎉">
+        <Section title="Vencidos" color="#ef4444" count={vencidos.length} emptyText="Sin proyectos vencidos 🎉"
+          sectionIds={vencidos.map(p => p.id)} selectedIds={selectedIds} onSelectAll={onSelectAll}>
           {vencidos.map(p => <DashCard key={p.id} proyecto={p} today={today} onClick={() => onCardClick(p)} />)}
         </Section>
-        <Section title="Entrega hoy" color="#f97316" count={hoy.length} emptyText="Sin entregas para hoy">
+        <Section title="Entrega hoy" color="#f97316" count={hoy.length} emptyText="Sin entregas para hoy"
+          sectionIds={hoy.map(p => p.id)} selectedIds={selectedIds} onSelectAll={onSelectAll}>
           {hoy.map(p => <DashCard key={p.id} proyecto={p} today={today} onClick={() => onCardClick(p)} />)}
         </Section>
       </div>
 
       {/* Próximos 7 días */}
       <div style={{ marginBottom: 12 }}>
-        <Section title="Próximos 7 días" color="#eab308" count={proximosSiete.length} emptyText="Sin entregas esta semana">
+        <Section title="Próximos 7 días" color="#eab308" count={proximosSiete.length} emptyText="Sin entregas esta semana"
+          sectionIds={proximosSiete.map(p => p.id)} selectedIds={selectedIds} onSelectAll={onSelectAll}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 7 }}>
             {proximosSiete.map(p => <DashCard key={p.id} proyecto={p} today={today} onClick={() => onCardClick(p)} />)}
           </div>
@@ -290,7 +316,8 @@ export function DashboardView({ proyectos, onCardClick }: Props) {
 
       {/* Más adelante */}
       {masAdelante.length > 0 && (
-        <Section title="Más adelante" count={masAdelante.length} emptyText="">
+        <Section title="Más adelante" count={masAdelante.length} emptyText=""
+          sectionIds={masAdelante.map(p => p.id)} selectedIds={selectedIds} onSelectAll={onSelectAll}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 7 }}>
             {masAdelante.map(p => <DashCard key={p.id} proyecto={p} today={today} onClick={() => onCardClick(p)} />)}
           </div>
