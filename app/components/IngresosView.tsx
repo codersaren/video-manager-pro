@@ -45,7 +45,7 @@ export function IngresosView({ proyectos }: Props) {
   const [hiddenClients, setHiddenClients] = useState<Set<string>>(new Set());
 
   const conPrecio = useMemo(() =>
-    proyectos.filter(p => p.precio > 0 && p.estado !== 'cancelado'),
+    proyectos.filter(p => p.precio > 0 && p.estado !== 'cancelado' && p.estado !== 'en_espera'),
     [proyectos]
   );
 
