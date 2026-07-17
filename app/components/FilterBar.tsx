@@ -18,7 +18,7 @@ export interface Filtros {
   clientesOcultos: string[];
 }
 
-export const FILTROS_EMPTY: Filtros = { estados: [], cliente: '', fecha: 'todos', busqueda: '', clientesOcultos: [] };
+export const FILTROS_EMPTY: Filtros = { estados: [...ESTADOS], cliente: '', fecha: 'todos', busqueda: '', clientesOcultos: [] };
 
 const FECHAS: { value: FechaFiltro; label: string }[] = [
   { value: 'todos', label: 'Todas' },
@@ -38,7 +38,7 @@ export function FilterBar({ filtros, clientes, onChange, compact = false }: Prop
   const [popoverOpen, setPopoverOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  const hasActive = filtros.estados.length > 0 || filtros.cliente !== '' || filtros.fecha !== 'todos' || filtros.busqueda !== '' || filtros.clientesOcultos.length > 0;
+  const hasActive = filtros.estados.length < ESTADOS.length || filtros.cliente !== '' || filtros.fecha !== 'todos' || filtros.busqueda !== '' || filtros.clientesOcultos.length > 0;
   const hayOcultos = filtros.clientesOcultos.length > 0;
 
   useEffect(() => {
@@ -53,7 +53,9 @@ export function FilterBar({ filtros, clientes, onChange, compact = false }: Prop
   }, [popoverOpen]);
 
   const toggleEstado = (e: EstadoProyecto) => {
-    const next = filtros.estados.includes(e)
+    const isActive = filtros.estados.includes(e);
+    if (isActive && filtros.estados.length <= 1) return; // keep at least one selected
+    const next = isActive
       ? filtros.estados.filter(s => s !== e)
       : [...filtros.estados, e];
     onChange({ ...filtros, estados: next });

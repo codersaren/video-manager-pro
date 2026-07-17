@@ -81,7 +81,7 @@ export default function Home() {
       const q = filtros.busqueda.toLowerCase();
       if (!p.nombre.toLowerCase().includes(q) && !p.cliente.toLowerCase().includes(q)) return false;
     }
-    if (filtros.estados.length > 0 && !filtros.estados.includes(p.estado)) return false;
+    if (!filtros.estados.includes(p.estado)) return false;
     if (filtros.cliente && p.cliente.trim() !== filtros.cliente) return false;
     if (filtros.fecha !== 'todos') {
       const hoy = getTodayISO();
