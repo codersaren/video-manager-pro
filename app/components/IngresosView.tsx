@@ -115,6 +115,13 @@ export function IngresosView({ proyectos }: Props) {
     enCurso:   filtered.filter(p => p.estado !== 'pagado' && p.estado !== 'entregado').length,
   }), [filtered]);
 
+  // Status-filtered pool (respects the pill selection, ignores client hides) — used
+  // for the chart and the by-client breakdown so they match the status filter too.
+  const porEstado = useMemo(() =>
+    conPrecio.filter(p => statusFilter.has(p.estado)),
+    [conPrecio, statusFilter]
+  );
+
   // ── Chart: 12-month view OR week-by-week for selected month ─────────────────
   const chartBars = useMemo(() => {
     if (!selectedMonth) {
@@ -125,7 +132,7 @@ export function IngresosView({ proyectos }: Props) {
         const isSelected = false;
         const isCurrent = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
         const label = MONTH_SHORT[d.getMonth()] + (d.getFullYear() !== now.getFullYear() ? ` '${String(d.getFullYear()).slice(2)}` : '');
-        const mp = conPrecio.filter(p => p.fechaEntrega.startsWith(key));
+        const mp = porEstado.filter(p => p.fechaEntrega.startsWith(key));
         const cobrado   = mp.filter(p => p.estado === 'pagado').reduce((s, p) => s + p.precio, 0);
         const porCobrar = mp.filter(p => p.estado === 'entregado').reduce((s, p) => s + p.precio, 0);
         const enCurso   = mp.filter(p => p.estado !== 'pagado' && p.estado !== 'entregado').reduce((s, p) => s + p.precio, 0);
@@ -151,7 +158,7 @@ export function IngresosView({ proyectos }: Props) {
       const label  = `${startD}–${endD} ${MONTH_SHORT[month]}`;
       const key    = `w${weekNum}`;
 
-      const wp = conPrecio.filter(p => {
+      const wp = porEstado.filter(p => {
         if (!p.fechaEntrega) return false;
         const pd = new Date(p.fechaEntrega);
         return pd >= weekStart && pd <= weekEnd;
@@ -165,15 +172,15 @@ export function IngresosView({ proyectos }: Props) {
       weekNum++;
     }
     return weeks;
-  }, [selectedMonth, conPrecio, now]);
+  }, [selectedMonth, porEstado, now]);
 
   const maxChart = useMemo(() => Math.max(...chartBars.map(b => b.total), 1), [chartBars]);
 
-  // ── By client (from full conPrecio filtered by month only, so hidden toggles always show) ──
+  // ── By client (status-filtered, but ignoring client hides so hidden toggles always show) ──
   const byClient = useMemo(() => {
     const base = selectedMonth
-      ? conPrecio.filter(p => p.fechaEntrega.startsWith(monthKey(selectedMonth.year, selectedMonth.month)))
-      : conPrecio;
+      ? porEstado.filter(p => p.fechaEntrega.startsWith(monthKey(selectedMonth.year, selectedMonth.month)))
+      : porEstado;
     const map = new Map<string, { cobrado: number; porCobrar: number; enCurso: number; count: number }>();
     base.forEach(p => {
       const key = p.cliente || '—';
@@ -187,7 +194,7 @@ export function IngresosView({ proyectos }: Props) {
     return Array.from(map.entries())
       .map(([cliente, v]) => ({ cliente, ...v, total: v.cobrado + v.porCobrar + v.enCurso }))
       .sort((a, b) => b.total - a.total);
-  }, [conPrecio, selectedMonth]);
+  }, [porEstado, selectedMonth]);
 
   const maxClient = useMemo(() => Math.max(...byClient.map(c => c.total), 1), [byClient]);
 
