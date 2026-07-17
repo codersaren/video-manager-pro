@@ -9,7 +9,7 @@ const STATUS_COLOR: Record<string, string> = {
   entregado: '#16a34a', pagado: '#6b7280', en_espera: '#0891b2', cancelado: '#dc2626',
 };
 
-const FINISHED = new Set(['entregado', 'pagado', 'cancelado']);
+const FINISHED = new Set(['entregado', 'pagado', 'cancelado', 'en_espera']);
 
 function diffDays(a: string, b: string): number {
   const da = new Date(a + 'T00:00:00');
