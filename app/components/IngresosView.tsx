@@ -16,6 +16,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const ALL_STATUSES = ['pendiente', 'editando', 'revision', 'entregado', 'pagado', 'en_espera'];
+const DEFAULT_STATUSES = ALL_STATUSES.filter(s => s !== 'en_espera');
 
 const MONTH_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 const MONTH_FULL  = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -43,7 +44,7 @@ export function IngresosView({ proyectos }: Props) {
 
   // null = all time; otherwise { year, month } (month is 0-indexed)
   const [selectedMonth, setSelectedMonth] = useState<{ year: number; month: number } | null>(null);
-  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set(ALL_STATUSES));
+  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set(DEFAULT_STATUSES));
   const [hiddenClients, setHiddenClients] = useState<Set<string>>(new Set());
 
   const conPrecio = useMemo(() =>
@@ -95,7 +96,10 @@ export function IngresosView({ proyectos }: Props) {
     setSelectedMonth({ year: d.getFullYear(), month: d.getMonth() });
   };
 
-  const hasActiveFilters = statusFilter.size < ALL_STATUSES.length || hiddenClients.size > 0;
+  const hasActiveFilters =
+    statusFilter.size !== DEFAULT_STATUSES.length ||
+    !DEFAULT_STATUSES.every(s => statusFilter.has(s)) ||
+    hiddenClients.size > 0;
 
   // ── Totals ──────────────────────────────────────────────────────────────────
   const totals = useMemo(() => {
@@ -302,7 +306,7 @@ export function IngresosView({ proyectos }: Props) {
           })}
           {hasActiveFilters && (
             <button
-              onClick={() => { setStatusFilter(new Set(ALL_STATUSES)); setHiddenClients(new Set()); }}
+              onClick={() => { setStatusFilter(new Set(DEFAULT_STATUSES)); setHiddenClients(new Set()); }}
               style={{
                 padding: '4px 10px', borderRadius: 20, cursor: 'pointer',
                 fontSize: 11, border: '1.5px solid var(--border)',
