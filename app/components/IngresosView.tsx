@@ -15,6 +15,8 @@ const STATUS_LABEL: Record<string, string> = {
   entregado: 'Entregado', pagado: 'Pagado', en_espera: 'En espera', cancelado: 'Cancelado',
 };
 
+const ALL_STATUSES = ['pendiente', 'editando', 'revision', 'entregado', 'pagado', 'en_espera'];
+
 const MONTH_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 const MONTH_FULL  = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -41,11 +43,11 @@ export function IngresosView({ proyectos }: Props) {
 
   // null = all time; otherwise { year, month } (month is 0-indexed)
   const [selectedMonth, setSelectedMonth] = useState<{ year: number; month: number } | null>(null);
-  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set(['cobrado', 'porCobrar', 'enCurso']));
+  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set(ALL_STATUSES));
   const [hiddenClients, setHiddenClients] = useState<Set<string>>(new Set());
 
   const conPrecio = useMemo(() =>
-    proyectos.filter(p => p.precio > 0 && p.estado !== 'cancelado' && p.estado !== 'en_espera'),
+    proyectos.filter(p => p.precio > 0 && p.estado !== 'cancelado'),
     [proyectos]
   );
 
@@ -57,9 +59,7 @@ export function IngresosView({ proyectos }: Props) {
     }
     const client = p.cliente || '—';
     if (hiddenClients.has(client)) return false;
-    if (p.estado === 'pagado'   && !statusFilter.has('cobrado'))   return false;
-    if (p.estado === 'entregado' && !statusFilter.has('porCobrar')) return false;
-    if (p.estado !== 'pagado' && p.estado !== 'entregado' && !statusFilter.has('enCurso')) return false;
+    if (!statusFilter.has(p.estado)) return false;
     return true;
   }), [conPrecio, selectedMonth, statusFilter, hiddenClients]);
 
@@ -95,7 +95,7 @@ export function IngresosView({ proyectos }: Props) {
     setSelectedMonth({ year: d.getFullYear(), month: d.getMonth() });
   };
 
-  const hasActiveFilters = statusFilter.size < 3 || hiddenClients.size > 0;
+  const hasActiveFilters = statusFilter.size < ALL_STATUSES.length || hiddenClients.size > 0;
 
   // ── Totals ──────────────────────────────────────────────────────────────────
   const totals = useMemo(() => {
@@ -215,11 +215,11 @@ export function IngresosView({ proyectos }: Props) {
     { label: 'En curso',        value: totals.enCurso,   count: counts.enCurso,    color: AMBER, bar: pct(totals.enCurso) },
   ];
 
-  const STATUS_PILLS = [
-    { key: 'cobrado',   label: 'Cobrado',    color: GREEN },
-    { key: 'porCobrar', label: 'Por cobrar', color: BLUE  },
-    { key: 'enCurso',   label: 'En curso',   color: AMBER },
-  ];
+  const STATUS_PILLS = ALL_STATUSES.map(key => ({
+    key,
+    label: STATUS_LABEL[key] ?? key,
+    color: STATUS_SOLID[key] ?? '#6b7280',
+  }));
 
   const monthLabel = selectedMonth
     ? `${MONTH_FULL[selectedMonth.month]} ${selectedMonth.year}`
@@ -302,7 +302,7 @@ export function IngresosView({ proyectos }: Props) {
           })}
           {hasActiveFilters && (
             <button
-              onClick={() => { setStatusFilter(new Set(['cobrado', 'porCobrar', 'enCurso'])); setHiddenClients(new Set()); }}
+              onClick={() => { setStatusFilter(new Set(ALL_STATUSES)); setHiddenClients(new Set()); }}
               style={{
                 padding: '4px 10px', borderRadius: 20, cursor: 'pointer',
                 fontSize: 11, border: '1.5px solid var(--border)',
